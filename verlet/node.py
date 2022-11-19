@@ -1,12 +1,12 @@
 class Node:
-    def __init__(self, world, x, y, velX=0, velY=0,
-                 pinned=False, radius=7):
+    def __init__(self, world, x, y, velX=0.0, velY=0.0,
+                 pinned=False, radius=5.0):
         self.world = world
 
         self.x, self.y = x, y
         self.velX, self.velY = velX, velY
         self.oldX = self.x - self.velX
-        self.oldY = self.y - self.velY
+        self.oldY = self.y + self.velY
 
         self.pinned = pinned
         self.radius = radius
@@ -21,7 +21,8 @@ class Node:
         self.velY = (self.y - self.oldY) * self.world.airFriction
 
         self.oldX, self.oldY = self.x, self.y
-        self.x += self.velX + self.world.gravityX
-        self.y += self.velY + self.world.gravityY
+        self.x += self.velX - self.world.gravityX * self.world.timeStep
+        self.y += self.velY - self.world.gravityY * self.world.timeStep
 
-    def applyBoundaries(self): self.world.boundaryFunction(self)
+    def applyBoundaries(self):
+        self.world.boundaryFunction(self)
