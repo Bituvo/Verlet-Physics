@@ -5,27 +5,27 @@ import tkinter as tk
 JOINTS = 30
 DISTANCE = 20
 
-def boundaryFunction(point):
-    x, y = point.x, point.y
+def boundaryFunction(node):
+    x, y = node.x, node.y
 
-    if x < point.radius:
-        point.x, point.oldX = [point.radius] * 2
-
-    if x > point.world.width - point.radius:
-        point.x, point.oldX = [point.world.width - point.radius] * 2
-
-    if y < point.radius:
-        point.y, point.oldY = [point.radius] * 2
-
-    if y > point.world.height - point.radius:
-        point.y, point.oldY = [point.world.height - point.radius] * 2
+    if x < node.radius:
+        node.x = node.radius
+    if y < node.radius:
+        node.y = node.radius
+    if x > node.world.width - node.radius:
+        node.x = node.world.width - node.radius
+    if y > node.world.height - node.radius:
+        node.y = node.world.height - node.radius
+        # Apply ground friction
+        velX = (node.x - node.oldX) * 0.8
+        node.oldX = node.x - velX
 
 root = tk.Tk()
 root.title('Verlet Square Demo')
-root.resizable(0, 0)
+root.resizable(False, False)
 root.wm_attributes('-fullscreen', True)
 
-area = world.World(root.winfo_screenwidth(), root.winfo_screenheight(), (0, 1), 0.99, boundaryFunction)
+area = world.World(root.winfo_screenwidth(), root.winfo_screenheight(), (0, -98), 0.99, boundaryFunction, 1 / 60)
 
 points = []
 sticks = []
