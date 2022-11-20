@@ -1,12 +1,11 @@
 class Node:
-    def __init__(self, world, x, y, velX=0.0, velY=0.0,
+    def __init__(self, world, x, y, xVel=0.0, yVel=0.0,
                  pinned=False, radius=5.0):
         self.world = world
 
         self.x, self.y = x, y
-        self.velX, self.velY = velX, velY
-        self.oldX = self.x - self.velX
-        self.oldY = self.y + self.velY
+        self.oldX = self.x - xVel
+        self.oldY = self.y + yVel
 
         self.pinned = pinned
         self.radius = radius
@@ -17,12 +16,12 @@ class Node:
             self.applyBoundaries()
 
     def physicsStep(self):
-        self.velX = (self.x - self.oldX) * self.world.airFriction
-        self.velY = (self.y - self.oldY) * self.world.airFriction
+        xVel = (self.x - self.oldX) * self.world.airFriction
+        yVel = (self.y - self.oldY) * self.world.airFriction
 
         self.oldX, self.oldY = self.x, self.y
-        self.x += self.velX - self.world.gravityX * self.world.timeStep
-        self.y += self.velY - self.world.gravityY * self.world.timeStep
+        self.x += xVel - self.world.gravityX * self.world.timeStep
+        self.y += yVel - self.world.gravityY * self.world.timeStep
 
     def applyBoundaries(self):
         self.world.boundaryFunction(self)
