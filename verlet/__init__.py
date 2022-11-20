@@ -76,7 +76,7 @@ class World:
         '''
         return sum(map(lambda item: bool(item), self.constraints))
 
-    def getNodeObject(self, ID: int) -> Union[None, int]:
+    def getNodeObject(self, ID: int) -> Union[None, Node]:
         '''
         Returns the node object given its ID
         Will return None if the node was deleted
@@ -86,7 +86,7 @@ class World:
         '''
         return self.nodes[ID]
 
-    def getConstraintObject(self, ID: int) -> Union[None, int]:
+    def getConstraintObject(self, ID: int) -> Union[None, Node]:
         '''
         Returns the constraint object given its ID
         Will return None if the constraint was deleted
