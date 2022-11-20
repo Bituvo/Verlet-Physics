@@ -1,7 +1,10 @@
-from verlet import world as World, node as Node, constraint as Constraint
 from time import process_time
 from tkinter import ttk
 import tkinter as tk
+import verlet
+from verlet.constraint import distance
+
+from random import shuffle
 
 class App:
     # INITIALIZATION
@@ -19,8 +22,33 @@ class App:
         self.createContextMenu()
         self.setBindings()
 
+        self.createCloth(21, 15, 50)
+
         self.frame()
         self.master.mainloop()
+
+    def createCloth(self, width, height, size):
+        x1 = (int(self.canvas['width']) / 2) - (width * size / 2)
+        y1 = (int(self.canvas['height']) / 2) - (height * size / 2)
+
+        for y in range(0, height * size, size):
+            for x in range(0, width * size, size):
+                self.world.newNode(x + x1, y + y1)
+
+        for ID, node in enumerate(self.world.getNodes()):
+            if node.y == y1:
+                if not ((node.x - x1) / size) % 2:
+                    node.pinned = True
+            else:
+                self.world.newConstraint(ID, ID - width, stiffness=1)
+
+            if node.x > x1 and node.x < x1 + width * size:
+                if node.y == y1:
+                    self.world.newConstraint(ID, ID - 1, stiffness=0.5)
+                else:
+                    self.world.newConstraint(ID, ID - 1, stiffness=1)
+
+        shuffle(self.world.nodes)
 
     def createCanvas(self, screenWidth, screenHeight):
         self.canvas = tk.Canvas(self.master, width=screenWidth,
@@ -31,9 +59,9 @@ class App:
         self.playing = False
         self.mode = 'node'
         self.selectedStartNode, self.selectedEndNode = None, None
-        self.world = World.World(screenWidth, screenHeight,
-                                (0, -32), 0.99, self.boundary, 1 / 60)
-        self.nodes, self.constraints = [], []
+        self.world = verlet.World((0, -32), 0.99, self.boundary, 1 / 60) # type: ignore
+        setattr(self.world, 'width', screenWidth)
+        setattr(self.world, 'height', screenHeight)
         self.nodeSelectionCircle = None
         self.selectionBox, self.selectedNode = None, None
         self.selectedNodeWasPinned = False
@@ -168,10 +196,7 @@ class App:
         t1 = process_time()
         
         if self.playing:
-            for node in self.nodes:
-                node.update()
-            for constraint in self.constraints:
-                constraint.update()
+            self.world.update(constraintIterations=1)
 
         self.render()
         self.handleNodeSelection()
@@ -179,7 +204,7 @@ class App:
 
         t2 = process_time()
         if t2 - t1 > 1 / 60:
-            self.frame()
+            self.master.after(0, self.frame)
         else:
             self.master.after(round((1 / 60 - (t2 - t1)) * 1000), self.frame)
 
@@ -189,7 +214,7 @@ class App:
         self.canvas.delete(self.nodeSelectionCircle or 0)
 
         # Draw all constraints
-        for constraint in self.constraints:
+        for constraint in self.world.getConstraints():
             x1, y1 = constraint.startPoint.x, constraint.startPoint.y
             x2, y2 = constraint.endPoint.x, constraint.endPoint.y
 
@@ -197,7 +222,7 @@ class App:
                 x1, y1, x2, y2, width=3, fill='#000', tags='temp')
 
         # Draw all points
-        for node in self.nodes:
+        for node in self.world.getNodes():
             x1, y1 = node.x - node.radius, node.y - node.radius
             x2, y2 = node.x + node.radius, node.y + node.radius
             fill = '#555' if node in self.selectedNodes or node == self.selectedNode else '#000'
@@ -206,7 +231,8 @@ class App:
                 x1, y1, x2, y2, outline='', fill=fill, tags='temp')
 
         # Draw node selection circles and the selection box
-        self.drawNodeSelectionCircle(Node.Node(self.world, self.master.winfo_pointerx(), self.master.winfo_pointery()))
+        # https://stackoverflow.com/questions/74504174/how-do-i-create-an-object-with-subvalues-without-creating-a-class
+        self.drawNodeSelectionCircle(type('point', (), {'x': self.master.winfo_pointerx(), 'y': self.master.winfo_pointery()}))
         self.drawSelectionBox()
         self.canvas.update()
 
@@ -237,7 +263,7 @@ class App:
     def findDistance(self, point1, point2):
         if not point2:
             return float('+inf')
-        return Constraint.distance(point1, point2)
+        return distance(point1, point2)
 
     # CONTEXT MENU
 
@@ -254,32 +280,32 @@ class App:
     def selectAll(self, event=None):
         if not self.playing:
             self.selectMode()
-            self.selectedNodes = self.nodes
+            self.selectedNodes = self.world.getNodes()
 
     def deleteSelection(self, event=None):
         if not self.playing:
             self.deleteSelectedAttachedConstraints()
             newNodes = []
 
-            for node in self.nodes:
+            for node in self.world.getNodes():
                 if node not in self.selectedNodes and node != self.selectedNode:
                     newNodes.append(node)
 
-            self.nodes = newNodes
+            self.world.nodes = newNodes
 
     def deleteSelectedAttachedConstraints(self, event=None):
         if not self.playing:
             newConstraints = []
 
-            for constraint in self.constraints:
+            for constraint in self.world.getConstraints():
                 if constraint.startPoint not in self.selectedNodes and constraint.endPoint not in self.selectedNodes:
                     newConstraints.append(constraint)
 
-            self.constraints = newConstraints
+            self.world.constraints = newConstraints
 
     def deleteAll(self, event=None):
         if not self.playing:
-            self.nodes, self.constraints, self.selectedNodes = [], [], []
+            self.world.nodes, self.world.constraints, self.selectedNodes = [], [], []
     
     # INTERACTION AND MODES
 
@@ -312,7 +338,7 @@ class App:
         # Find the closest node to a position that is 30 or less pixels away
         closestNode = None
 
-        for point in self.nodes:
+        for point in self.world.getNodes():
             distance = self.findDistance(point1, point)
             if distance < self.findDistance(point1, closestNode) and distance <= 30:
                 closestNode = point
@@ -324,9 +350,9 @@ class App:
     def handleNodeSelection(self):
         if self.selectedNode and not self.contextMenuOpen:
             x, y = self.selectedNode.x, self.selectedNode.y
-            mousePoint = Node.Node(self.world, *self.master.winfo_pointerxy())
+            mousePoint = type('point', (), {'x': self.master.winfo_pointerx(), 'y': self.master.winfo_pointery(), 'radius': 0, 'world': self.world})
             self.boundary(mousePoint)
-            mouseX, mouseY = mousePoint.x, mousePoint.y
+            mouseX, mouseY = mousePoint.x, mousePoint.y # type: ignore
 
             self.selectedNode.oldX = self.selectedNode.x
             self.selectedNode.oldY = self.selectedNode.y
@@ -376,7 +402,7 @@ class App:
 
         constraints = []
         for node in self.selectedNodes:
-            for constraint in self.constraints:
+            for constraint in self.world.getConstraints():
                 if node in [constraint.startPoint, constraint.endPoint]:
                     constraints.append(constraint)
 
@@ -394,7 +420,7 @@ class App:
         if self.mode == 'node':
             # Don't create a new node if another node is too close
             if not self.findClosestNode(event):
-                self.nodes.append(Node.Node(self.world, mouseX, mouseY, *self.getNodeOptions()))
+                self.world.newNode(mouseX, mouseY, *self.getNodeOptions())
 
         elif self.mode == 'constraint':
             if not self.selectedStartNode:
@@ -410,16 +436,15 @@ class App:
                 if self.selectedEndNode:
                     # Don't allow creation of constraints with the same endpoints
                     overlapDetected = False
-                    for stick in self.constraints:
-                        if (stick.startPoint.x, stick.startPoint.y) == (self.selectedStartNode.x, self.selectedStartNode.y) \
-                                and (stick.endPoint.x, stick.endPoint.y) == (self.selectedEndNode.x, self.selectedEndNode.y):
+                    for constraint in self.world.getConstraints():
+                        if (constraint.startPoint.x, constraint.startPoint.y) == (self.selectedStartNode.x, self.selectedStartNode.y) \
+                                and (constraint.endPoint.x, constraint.endPoint.y) == (self.selectedEndNode.x, self.selectedEndNode.y):
                             overlapDetected = True
 
                     if not overlapDetected:
                         self.canvas.delete(self.constraintPreviewLine)
                         print(self.getConstraintOptions())
-                        self.constraints.append(Constraint.Constraint(
-                            self.world, self.selectedStartNode, self.selectedEndNode, *self.getConstraintOptions()))
+                        self.world.newConstraint(self.world.nodes.index(self.selectedStartNode), self.world.nodes.index(self.selectedEndNode), *self.getConstraintOptions())
 
                         self.selectedStartNode, self.selectedEndNode = None, None
 
@@ -456,13 +481,13 @@ class App:
             self.canvas.delete(self.selectionBox or 0)
             self.selX1, self.selY1, self.selectionBox = None, None, None
 
-            for point in self.nodes:
-                x, y = point.x, point.y
+            for node in self.world.getNodes():
+                x, y = node.x, node.y
 
                 if x > selectionBoundary[0] and x < selectionBoundary[2] \
                         and y > selectionBoundary[1] and y < selectionBoundary[3] \
-                        and point not in self.selectedNodes:
-                    self.selectedNodes.append(point)
+                        and node not in self.selectedNodes:
+                    self.selectedNodes.append(node) # type: ignore
 
 
 if __name__ == '__main__':
