@@ -22,7 +22,7 @@ class World:
 
         self.nodes, self.constraints = [], []
 
-    def newNode(self, x: Union[int, float], y: Union[int, float], velX: Union[int, float]=0, velY: Union[int, float]=0, pinned: bool=False, radius: Union[int, float]=5) -> int:
+    def newNode(self, x: Union[int, float], y: Union[int, float], xVel: Union[int, float]=0, yVel: Union[int, float]=0, pinned: bool=False, radius: Union[int, float]=5) -> int:
         '''
         Creates a new node object with the given parameters
         Returns the ID of the node (for passing to newConstraint, deleting or changing)
@@ -39,7 +39,7 @@ class World:
 
             * Measured in units/second, no velocity by default
         '''
-        self.nodes.append(Node(self, x, y, velX, velY, pinned, radius))
+        self.nodes.append(Node(self, x, y, xVel, yVel, pinned, radius))
         return len(self.nodes) - 1
 
     def newConstraint(self, startPoint: int, endPoint: int, length: Union[None, int, float]=None, stiffness: float=0.5) -> int:
