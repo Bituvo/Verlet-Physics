@@ -22,33 +22,8 @@ class App:
         self.createContextMenu()
         self.setBindings()
 
-        self.createCloth(21, 15, 50)
-
         self.frame()
         self.master.mainloop()
-
-    def createCloth(self, width, height, size):
-        x1 = (int(self.canvas['width']) / 2) - (width * size / 2)
-        y1 = (int(self.canvas['height']) / 2) - (height * size / 2)
-
-        for y in range(0, height * size, size):
-            for x in range(0, width * size, size):
-                self.world.newNode(x + x1, y + y1)
-
-        for ID, node in enumerate(self.world.getNodes()):
-            if node.y == y1:
-                if not ((node.x - x1) / size) % 2:
-                    node.pinned = True
-            else:
-                self.world.newConstraint(ID, ID - width, stiffness=1)
-
-            if node.x > x1 and node.x < x1 + width * size:
-                if node.y == y1:
-                    self.world.newConstraint(ID, ID - 1, stiffness=0.5)
-                else:
-                    self.world.newConstraint(ID, ID - 1, stiffness=1)
-
-        shuffle(self.world.nodes)
 
     def createCanvas(self, screenWidth, screenHeight):
         self.canvas = tk.Canvas(self.master, width=screenWidth,
@@ -196,7 +171,7 @@ class App:
         t1 = process_time()
         
         if self.playing:
-            self.world.update(constraintIterations=1)
+            self.world.update()
 
         self.render()
         self.handleNodeSelection()
