@@ -16,12 +16,13 @@ class Node:
             self.applyBoundaries()
 
     def physicsStep(self):
-        xVel = (self.x - self.oldX) * self.world.airFriction
-        yVel = (self.y - self.oldY) * self.world.airFriction
+        x, y = self.x, self.y
+        oldX, oldY = self.oldX, self.oldY
+        self.oldX, self.oldY = x, y
+        airFriction, timeStep = self.world.airFriction, self.world.timeStep
 
-        self.oldX, self.oldY = self.x, self.y
-        self.x += xVel - self.world.gravityX * self.world.timeStep
-        self.y += yVel - self.world.gravityY * self.world.timeStep
+        self.x += (x - oldX) * airFriction - self.world.gravityX * timeStep
+        self.y += (y - oldY) * airFriction - self.world.gravityY * timeStep
 
     def applyBoundaries(self):
         self.world.boundaryFunction(self)
