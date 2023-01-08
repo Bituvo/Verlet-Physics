@@ -1,13 +1,12 @@
 from .node import Node
-from .constraint import Constraint
+from .constraint import Constraint, distance
 from types import MethodType
-from typing import Union
 from random import sample
 
 class World:
-    def __init__(self, gravity: tuple, airFriction: float, boundaryFunction: MethodType, timeStep: float):
+    def __init__(self, gravity: tuple[int | float, int | float], airFriction: float, boundaryFunction: MethodType, timeStep: float):
         '''
-        Initializes the world that contains nodes and constraints
+        Initializes a world will contain nodes and constraints.
 
         Parameters:
             gravity (tuple)                 A tuple containing horizontal and vertical gravity in the form of units/second squared
@@ -22,10 +21,10 @@ class World:
 
         self.nodes, self.constraints = [], []
 
-    def newNode(self, x: Union[int, float], y: Union[int, float], xVel: Union[int, float]=0, yVel: Union[int, float]=0, pinned: bool=False, radius: Union[int, float]=5) -> int:
+    def newNode(self, x: int | float, y: int | float, xVel: int | float=0, yVel: int | float=0, pinned: bool=False, radius: int | float=5) -> int:
         '''
-        Creates a new node object with the given parameters
-        Returns the ID of the node (for passing to newConstraint, deleting or changing)
+        Creates a new node object with the given parameters.
+        Returns the ID of the node (for passing to newConstraint, deleteNode, or configureNode).
 
         Parameters:
             x (integer/float)               The X position of the node to be created
@@ -40,91 +39,104 @@ class World:
             * Measured in units/second, no velocity by default
         '''
         self.nodes.append(Node(self, x, y, xVel, yVel, pinned, radius))
+
         return len(self.nodes) - 1
 
-    def newConstraint(self, startPoint: int, endPoint: int, length: Union[None, int, float]=None, stiffness: float=0.5) -> int:
+    def newConstraint(self, startNode: int, endNode: int, length: None | int | float=None, stiffness: float=0.3, allowCompression: bool=False, allowTension: bool=False) -> int:
         '''
-        Creates a new constraint object with the given endPoints and parameters
-        Returns the ID of the constraint (for deleting or changing)
+        Creates a new constraint object with the given endPoints and parameters.
+        Returns the ID of the constraint (for deleteConstraint or configureConstraint).
 
         Parameters:
-            startPoint (integer)            An ID returned by newNode after creating a node*
-            endPoint (integer)              Ditto*
+            startNode (integer)             An ID returned by newNode after creating a node*
+            endNode (integer)               Ditto*
             length (None/integer/float)     The target length of the constraint
                 - If length is None, it will be automatically set to the distance between startPoint and endPoint
             stiffness (float)               The stiffness scalar of the constraint (higher = stiffer)
                 - Must be between 0 and 1
                 - Defaults to 0.5 (50%)
+            allowCompression (boolean)      Whether or not the constraint is allowed to be shorter than its desired distance
+            allowTension (boolean)          Whether or not the constraint is allowed to be longer than its desired distance
             
             * Will raise an exception if either startPoint or endPoint were deleted
         '''
-        if self.nodes[startPoint] and self.nodes[endPoint]:
-            self.constraints.append(Constraint(self, self.nodes[startPoint], self.nodes[endPoint], length, stiffness))
+        startNode = self.getNodeObject(startNode)
+        endNode = self.getNodeObject(endNode)
+
+        if not length:
+            x1, y1 = startNode.x, startNode.y
+            x2, y2 = endNode.x, endNode.y
+
+            length = distance(x1, y1, x2, y2)
+
+        if startNode and endNode:
+            self.constraints.append(Constraint(self, startNode, endNode, length, stiffness, allowCompression, allowTension))
+            
             return len(self.constraints) - 1
         else:
-            raise ValueError('One of the nodes specified has been deleted')
+            raise ValueError('One of the nodes specified has been deleted or is invalid')
 
     def countNodes(self) -> int:
         '''
-        Returns how many nodes exist in the world
+        Returns how many nodes exist in the world.
         '''
-        return sum(map(lambda item: bool(item), self.nodes))
+        return sum(map(bool, self.nodes))
 
     def countConstraints(self) -> int:
         '''
-        Returns how many constraints exist in the world
+        Returns how many constraints exist in the world.
         '''
-        return sum(map(lambda item: bool(item), self.constraints))
+        return sum(map(bool, self.constraints))
 
-    def getNodeObject(self, ID: int) -> Union[None, Node]:
+    def getNodeObject(self, ID: int) -> None | Node:
         '''
-        Returns the node object given its ID
-        Will return None if the node was deleted
+        Returns the node object given its ID.
+        Will return None if the node was deleted.
 
         Parameters:
-            ID (integer)                    The ID of the node to retrieve
+            ID (integer)                    The ID of the node to retrieve, returned from newNode
         '''
         return self.nodes[ID]
 
-    def getConstraintObject(self, ID: int) -> Union[None, Node]:
+    def getConstraintObject(self, ID: int) -> None | Node:
         '''
-        Returns the constraint object given its ID
-        Will return None if the constraint was deleted
+        Returns the constraint object given its ID.
+        Will return None if the constraint was deleted.
 
         Parameters:
-            ID (integer)                    The ID of the constraint to retrieve
+            ID (integer)                    The ID of the constraint to retrieve, returned from newConstraint
         '''
         return self.constraints[ID]
 
-    def getNodes(self) -> tuple:
+    def getNodes(self) -> filter:
         '''
-        Returns all existing nodes in the world
+        Returns all existing nodes in the world as an iterator.
         '''
-        return tuple([node for node in self.nodes if node])
+        return filter(bool, self.nodes)
 
-    def getConstraints(self) -> tuple:
+    def getConstraints(self) -> filter:
         '''
-        Returns all existing constraints in the world
+        Returns all existing constraints in the world as an iterator.
         '''
-        return tuple([constraint for constraint in self.constraints if constraint])
+        return filter(bool, self.constraints)
 
     def deleteNode(self, ID: int):
         '''
-        Deletes a node given its ID
-        Also deletes all constraints connected to the node
+        Deletes a node given its ID.
+        Also deletes all constraints connected to the node.
 
         Parameters:
             ID (integer)                    The ID of the node to be deleted, returned from newNode
         '''
-        for ID, constraint in enumerate(self.getConstraints()):
-            if self.nodes[ID] in (constraint.startPoint, constraint.endPoint):
-                self.deleteConstraint(ID)
+        for constraintID, constraint in self.constraints:
+            if constraint and self.getNodeObject(ID) in (constraint.startNode, constraint.endNode):
+                self.deleteConstraint(constraintID)
 
         self.nodes[ID] = None
 
     def deleteConstraint(self, ID: int, deleteConnectedNodes: bool=False):
         '''
-        Deletes a constraint given its ID
+        Deletes a constraint given its ID.
 
         Parameters:
             ID (integer)                    The ID of the constraint to be deleted, returned from newConstraint
@@ -134,17 +146,88 @@ class World:
         if deleteConnectedNodes:
             constraint = self.getConstraintObject(ID)
 
-            for ID, node in enumerate(self.getNodes()):
-                if node in [constraint.startPoint, constraint.endPoint]: # type: ignore
-                    self.deleteNode(ID)
+            for nodeID, node in enumerate(self.getNodes()):
+                if node and node in (constraint.startPoint, constraint.endPoint):
+                    self.deleteNode(nodeID)
 
         self.constraints[ID] = None
 
-    def update(self, updateRandomly: tuple=(False, False), constraintIterations: int=1):
+    def setNodeVelocity(self, ID: int, xVel: int | float, yVel: int | float):
         '''
-        Updates all nodes and constraints in the world once
+        Sets the velocity, in units/second, of a node.
 
         Parameters:
+            ID (integer)                    The ID of the node to change, returned from newNode
+            xVel (integer/float)            The horizontal velocity, in units/second
+            yVel (integer/float)            The vertical velocity, in units/second
+        '''
+        node = self.getNodeObject(ID)
+
+        if node:
+            node.oldX = node.x - xVel * self.timeStep
+            node.oldY = node.y - yVel * self.timeStep
+
+    def addNodeVelocity(self, ID: int, xVel: int | float, yVel: int | float):
+        '''
+        Changes the velocity, in units/second, of a node.
+
+        Parameters:
+            ID (integer)                    The ID of the node to change, returned from newNode
+            xVel (integer/float)            The horizontal velocity, in units/second, to be added
+            yVel (integer/float)            The vertical velocity, in units/second, to be added
+        '''
+        node = self.getNodeObject(ID)
+
+        if node:
+            node.oldX -= xVel * self.timeStep
+            node.oldY -= yVel * self.timeStep
+
+    def configureNode(self, ID: int, **kwargs):
+        '''
+        Directly changes any parameter of a node.
+
+        Parameters:
+            ID (integer)                    The ID of the node to change, returned from newNode
+            See newNode for more options
+        '''
+        node = self.getNodeObject(ID)
+
+        if node:
+            for attribute in kwargs:
+                if attribute == 'xVel':
+                    node.oldX = node.x - kwargs['xVel'] * self.timeStep
+
+                elif attribute == 'yVel':
+                    node.oldY = node.y - kwargs['yVel'] * self.timeStep
+
+                else:
+                    setattr(node, attribute, kwargs[attribute])
+
+    def configureConstraint(self, ID: int, **kwargs):
+        '''
+        Directly changes any parameter of a constraint.
+
+        Parameters:
+            ID (integer)                    The ID of the constraint to change, returned from newConstraint
+            See newConstraint for more options *
+
+            Start and end nodes should be set to the Node objects here, not their IDs
+        '''
+        constraint = self.getConstraintObject(ID)
+
+        if constraint:
+            for attribute in kwargs:
+                setattr(constraint, attribute, kwargs[attribute])
+
+    def update(self, exclusions: tuple=((), ()), updateRandomly: tuple=(False, False), constraintIterations: int=1):
+        '''
+        Updates all nodes and constraints in the world according to the world's time step, once.
+
+        Parameters:
+            exclusions (2D tuple)           A 2D tuple representing which nodes and constraints to not update
+                - The first subtuple contains which nodes to not update
+                - The second subtuple contains which constraints to not update
+                - These are node and constraint objects, not IDs
             updateRandomly (tuple)          A tuple representing whether or not to randomly update
                 - The first item is whether or not to update nodes randomly
                 - The second item is whether or not to update constraints randomly
@@ -154,7 +237,19 @@ class World:
         nodeIterator = sample(self.getNodes(), self.countNodes()) if updateRandomly[0] else self.getNodes()
         constraintIterator = sample(self.getConstraints(), self.countConstraints()) if updateRandomly[1] else self.getConstraints()
 
-        for node in nodeIterator: node.update()
-        for iteration in range(constraintIterations):
+        for node in nodeIterator:
+            if exclusions[0]:
+                if node not in exclusions[0]:
+                    node.update()
+
+            else:
+                node.update()
+
+        for _ in range(constraintIterations):
             for constraint in constraintIterator:
-                constraint.update()
+                if exclusions[1]:
+                    if constraint not in exclusions[1]:
+                        constraint.update()
+
+                else:
+                    constraint.update()
