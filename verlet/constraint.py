@@ -1,38 +1,53 @@
 from math import sqrt
 
-def distance(point1, point2):
-    return sqrt((point2.x - point1.x) ** 2 + (point2.y - point1.y) ** 2)
+def distance(x1, y1, x2, y2):
+    return sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
 class Constraint:
-    def __init__(self, world, startPoint, endPoint, length=None, stiffness=0.3):
+    def __init__(self, world, startNode, endNode, length, stiffness, allowCompression, allowTension):
         self.world = world
 
-        self.startPoint = startPoint
-        self.endPoint = endPoint
-        self.calculateLength()
-        self.stiffness = stiffness
+        self.startNode = startNode
+        self.endNode = endNode
+        self.length, self.stiffness = length, stiffness
 
-    def calculateLength(self, length=None):
-        self.length = distance(self.startPoint, self.endPoint) if not length else length
+        self.allowCompression = allowCompression
+        self.allowTension = allowTension
+
+    def realDistance(self):
+        x1, y1 = self.startNode.x, self.startNode.y
+        x2, y2 = self.endNode.x, self.endNode.y
+        
+        return distance(x1, y1, x2, y2)
+
+    def constrain(self, distance=None):
+        distance = distance or self.realDistance()
+
+        difference = (self.length - distance) / distance if distance > 0 else 0
+        translateX = (self.startNode.x - self.endNode.x) * (difference / 2 * self.stiffness)
+        translateY = (self.startNode.y - self.endNode.y) * (difference / 2 * self.stiffness)
+
+        if not self.startNode.pinned:
+            self.startNode.x += translateX
+            self.startNode.y += translateY
+
+            self.world.boundaryFunction(self.startNode)
+
+        if not self.endNode.pinned:
+            self.endNode.x -= translateX
+            self.endNode.y -= translateY
+
+            self.world.boundaryFunction(self.endNode)
 
     def update(self):
-        diffX = self.startPoint.x - self.endPoint.x
-        diffY = self.startPoint.y - self.endPoint.y
-        dist = distance(self.startPoint, self.endPoint)
+        if not self.allowCompression and not self.allowTension:
+            self.constrain()
 
-        difference = 0
-        if dist > 0:
-            difference = (self.length - dist) / dist
+        else:
+            distance = self.realDistance()
 
-        translateX = diffX * (difference / 2 * self.stiffness)
-        translateY = diffY * (difference / 2 * self.stiffness)
+            if self.allowCompression and distance > self.length:
+                self.constrain(distance)
 
-        if not self.startPoint.pinned:
-            self.startPoint.x += translateX
-            self.startPoint.y += translateY
-            self.startPoint.applyBoundaries()
-
-        if not self.endPoint.pinned:
-            self.endPoint.x -= translateX
-            self.endPoint.y -= translateY
-            self.endPoint.applyBoundaries()
+            if self.allowTension and distance < self.length:
+                self.constrain(distance)
