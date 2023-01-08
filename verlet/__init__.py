@@ -234,8 +234,8 @@ class World:
             constraintIterations (integer)  How many times to update the constraints
                 - Once by default
         '''
-        nodeIterator = sample(self.getNodes(), self.countNodes()) if updateRandomly[0] else self.getNodes()
-        constraintIterator = sample(self.getConstraints(), self.countConstraints()) if updateRandomly[1] else self.getConstraints()
+        nodeIterator = sample(tuple(self.getNodes()), self.countNodes()) if updateRandomly[0] else self.getNodes()
+        constraintIterator = sample(tuple(self.getConstraints()), self.countConstraints()) if updateRandomly[1] else self.getConstraints()
 
         for node in nodeIterator:
             if exclusions[0]:
