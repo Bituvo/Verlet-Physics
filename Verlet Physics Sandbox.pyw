@@ -20,22 +20,11 @@ class App:
         self.initializeWindow()
         self.initializeWorld()
 
-        #top = self.world.newNode(SCREENWIDTH / 2, SCREENHEIGHT / 2 - 300, pinned=True)
-        #middle = self.world.newNode(SCREENWIDTH / 2, SCREENHEIGHT / 2)
-        #bottom = self.world.newNode(SCREENWIDTH / 2, SCREENHEIGHT / 2 + 300, xVel=1000)
-        #self.world.newConstraint(top, middle, stiffness=1)
-        #self.world.newConstraint(middle, bottom, stiffness=1)
-
-        ul = self.world.newNode(100, 100)
-        ur = self.world.newNode(300, 100)
-        bl = self.world.newNode(100, 300)
-        br = self.world.newNode(300, 300)
-        self.world.newConstraint(ul, ur)
-        self.world.newConstraint(ur, br)
-        self.world.newConstraint(br, bl)
-        self.world.newConstraint(bl, ul)
-        self.world.newConstraint(ur, bl)
-        self.world.newConstraint(ul, br)
+        top = self.world.newNode(SCREENWIDTH / 2, SCREENHEIGHT / 2 - 300, pinned=True)
+        middle = self.world.newNode(SCREENWIDTH / 2, SCREENHEIGHT / 2)
+        bottom = self.world.newNode(SCREENWIDTH / 2, SCREENHEIGHT / 2 + 300, xVel=1000)
+        self.world.newConstraint(top, middle, stiffness=1)
+        self.world.newConstraint(middle, bottom, stiffness=1)\
 
         while self.running:
             self.frame()
