@@ -226,4 +226,4 @@ class App:
         return closestNode
 
 if __name__ == '__main__':
-    app = App()
+    App()
