@@ -116,7 +116,7 @@ Sets the velocity, in units/second, of a node
 
 Parameters:
 | Parameter | Type | Description |
-| - | - | - | :- |
+| - | - | :- |
 | `ID` | `integer` | An ID returned by `world.newNode` |
 | `xVel` | `integer` or `float` | The horizontal velocity, in units/second |
 | `yVel` | `integer` or `float` | The vertical velocity, in units/second |
@@ -127,7 +127,7 @@ Changes the velocity, in units/second, of a node
 
 Parameters:
 | Parameter | Type | Description |
-| - | - | - | :- |
+| - | - | :- |
 | `ID` | `integer` | An ID returned by `world.newNode` |
 | `xVel` | `integer` or `float` | The horizontal velocity, in units/second, to be added |
 | `yVel` | `integer` or `float` | The vertical velocity, in units/second, to be added |
